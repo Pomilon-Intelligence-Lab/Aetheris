@@ -1,0 +1,16 @@
+vocab_size: 50257
+d_model: 128
+n_layer: 4
+num_experts: 4
+top_k: 1
+d_ff: 384
+ssm_d_state: 8
+ssm_expand: 2
+load_balancing_coef: 0.01
+router_z_loss_coef: 0.001
+max_seq_len: 128
+dtype: "float32" # Use float32 for debugging on CPU
+use_cpu_offload: false
+gradient_checkpointing: false
+checkpoint_ssm_layers: false
+use_flash_attention: false

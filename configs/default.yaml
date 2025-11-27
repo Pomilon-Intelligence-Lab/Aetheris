@@ -1,0 +1,16 @@
+vocab_size: 50257
+d_model: 768
+n_layer: 24
+num_experts: 4
+top_k: 1
+d_ff: 2304
+ssm_d_state: 16
+ssm_expand: 2
+load_balancing_coef: 0.01
+router_z_loss_coef: 0.001
+max_seq_len: 512
+dtype: "float16"
+use_cpu_offload: false
+gradient_checkpointing: true
+checkpoint_ssm_layers: true
+use_flash_attention: false
