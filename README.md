@@ -37,7 +37,7 @@ This code is provided for educational purposes and for others who want to experi
 ### Installation
 
 ```bash
-git clone [https://github.com/Pomilon/Aetheris.git](https://github.com/Pomilon/Aetheris.git)
+git clone https://github.com/Pomilon/Aetheris.git
 cd Aetheris
 pip install -r requirements.txt
 ````
