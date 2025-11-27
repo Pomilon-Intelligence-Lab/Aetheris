@@ -3,3 +3,4 @@ transformers
 datasets
 huggingface_hub
 pyyaml
+zstandard
