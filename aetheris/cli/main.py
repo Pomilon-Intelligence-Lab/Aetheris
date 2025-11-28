@@ -48,7 +48,7 @@ def train_command(args):
                                  betas=(0.9, 0.95), eps=1e-8, fused=False if device.type == 'cpu' else True)
     scaler = torch.amp.GradScaler('cuda' if device.type == 'cuda' else 'cpu', init_scale=2**10)
 
-    start_step, current_stage = load_latest_checkpoint(model, optimizer, scaler, device, args.checkpoint_dir)
+    start_step, current_stage = load_latest_checkpoint(model, optimizer, scaler, device, args.checkpoint_dir, args.checkpoint_name)
     
     trainer = Trainer(model, optimizer, scaler, config, device, args.checkpoint_dir)
 
@@ -211,6 +211,7 @@ def main():
     train_parser.add_argument("--batch_size", type=int, default=2, help="Batch size")
     train_parser.add_argument("--pretrain_steps", type=int, default=50000, help="Number of pretraining steps")
     train_parser.add_argument("--sft_steps", type=int, default=1000, help="Number of SFT steps")
+    train_parser.add_argument("--checkpoint_name", type=str, default="checkpoint_current.pth", help="Checkpoint file name to load from")
 
     # Generate Command
     gen_parser = subparsers.add_parser("generate", help="Generate text")
