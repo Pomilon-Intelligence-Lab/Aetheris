@@ -74,8 +74,6 @@ class Trainer:
 
             if torch.isnan(grad_norm):
                 print(f"WARNING: NaN gradient at step {global_step}, skipping update")
-                self.optimizer.zero_grad(set_to_none=True)
-                continue
 
             self.scaler.step(self.optimizer)
             self.scaler.update()
