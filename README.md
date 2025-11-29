@@ -76,11 +76,26 @@ This project is an implementation study and relies heavily on the brilliant theo
   * **Mixture of Experts:** Shazeer, N., et al. (2017). *Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer*. [arXiv:1701.06538](https://arxiv.org/abs/1701.06538)
   * **Inspiration:** Jamba (AI21 Labs) and OpenMoE.
 
-## 🧠 Model Weights
+## 🧠 Model Weights & Checkpoints
 
-Currently working on training a small model. Once complete, I will publish the final checkpoints on my [Hugging Face profile](https://huggingface.co/Pomilon).
+All pre-trained checkpoints are hosted on the [Hugging Face Hub](https://huggingface.co/Pomilon).
 
-> **Note:** Don't expect something that rivals state-of-the-art models :D! This is a proof-of-concept for the architecture.
+| Model Artifact | Step | Description | Download |
+| :--- | :--- | :--- | :--- |
+| **Aetheris-Base** | 10k | Early convergence checkpoint (Loss ~3.66). Good for analyzing router behavior. | [🤗 Hugging Face](https://huggingface.co/Pomilon/Aetheris) |
+| **Aetheris-Chat** | -- | *Coming Soon (Post-SFT)* | -- |
+
+> **⚠️ Important:** Aetheris uses a custom Hybrid Mamba-MoE architecture. You **cannot** load it directly with `transformers.AutoModel`. You must use the interface provided in this repository.
+
+### 🐍 How to Load
+
+```python
+python -m aetheris.cli.main generate --prompt "The quick brown fox" --checkpoint_dir path/to/checkpoints_folder # rename the checkpoint inside to checkpoint_current.pth
+```
+> **Note:** will add better inference later down the line, for now used this scuffed version. :D
+
+> **Note:** These weights are from an experimental run. While they demonstrate the architectural capabilities, do not expect GPT-5 or even google bard level coherence. :D
+> this project was made for learning and fun!
 
 ## License
 
