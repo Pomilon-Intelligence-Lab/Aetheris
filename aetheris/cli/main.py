@@ -55,10 +55,17 @@ def train_command(args):
     # --- STAGE 1: PRE-TRAINING ---
     if current_stage == "Pre-Training" or start_step == 0:
         pt_loader = create_streaming_loader("cerebras/SlimPajama-627B", "train",
-                                           tokenizer, config, args.batch_size, mode="pretrain", hf_token=args.hf_token)
+                                           tokenizer, config, args.batch_size, mode="pretrain", 
+                                           hf_token=args.hf_token, start_step=start_step)
         
+        # Validation loader (no skipping needed, always from start of val set)
+        pt_val_loader = create_streaming_loader("cerebras/SlimPajama-627B", "validation",
+                                               tokenizer, config, args.batch_size, mode="pretrain", 
+                                               hf_token=args.hf_token)
+
         start_step = trainer.train_epoch(pt_loader, total_steps=args.pretrain_steps, 
-                                       start_step=start_step, stage_name="Pre-Training")
+                                       start_step=start_step, stage_name="Pre-Training",
+                                       val_loader=pt_val_loader)
         current_stage = "SFT"
         start_step = 0
 
@@ -68,10 +75,16 @@ def train_command(args):
         param_group['lr'] = 5e-5
 
     sft_loader = create_streaming_loader("OpenAssistant/oasst1", "train",
-                                        tokenizer, config, args.batch_size, mode="sft", hf_token=args.hf_token)
+                                        tokenizer, config, args.batch_size, mode="sft", 
+                                        hf_token=args.hf_token, start_step=start_step)
+
+    sft_val_loader = create_streaming_loader("OpenAssistant/oasst1", "validation",
+                                            tokenizer, config, args.batch_size, mode="sft", 
+                                            hf_token=args.hf_token)
     
     trainer.train_epoch(sft_loader, total_steps=args.sft_steps, 
-                      start_step=start_step, stage_name="SFT")
+                      start_step=start_step, stage_name="SFT",
+                      val_loader=sft_val_loader)
 
     print("\nTraining Complete!")
 

@@ -13,12 +13,13 @@ def get_tokenizer(model_name: str = "gpt2"):
     return tokenizer
 
 class StreamingDataset(IterableDataset):
-    def __init__(self, dataset, tokenizer, max_seq_len, mode="pretrain", buffer_size=500):
+    def __init__(self, dataset, tokenizer, max_seq_len, mode="pretrain", buffer_size=500, skip_samples=0):
         self.dataset = dataset
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len
         self.mode = mode
         self.buffer_size = buffer_size
+        self.skip_samples = skip_samples
 
     def _prepare_sft_text(self, example):
         if 'messages' in example:
@@ -39,7 +40,10 @@ class StreamingDataset(IterableDataset):
     def __iter__(self) -> Iterator[Dict[str, torch.Tensor]]:
         iterator = iter(self.dataset)
         buffer = []
-
+        
+        # Calculate roughly how many items to skip if they were yielded
+        # We process skipping in the yield loop
+        
         for example in iterator:
             text = (example.get('text', '') if self.mode == "pretrain"
                    else self._prepare_sft_text(example))
@@ -70,16 +74,32 @@ class StreamingDataset(IterableDataset):
             if len(buffer) >= self.buffer_size:
                 random.shuffle(buffer)
                 for _ in range(self.buffer_size // 2):
-                    yield buffer.pop()
+                    item = buffer.pop()
+                    if self.skip_samples > 0:
+                        self.skip_samples -= 1
+                        continue
+                    yield item
 
         # Yield remaining
         random.shuffle(buffer)
         while buffer:
-            yield buffer.pop()
+            item = buffer.pop()
+            if self.skip_samples > 0:
+                self.skip_samples -= 1
+                continue
+            yield item
 
-def create_streaming_loader(dataset_name, split, tokenizer, config, batch_size, mode="pretrain", hf_token=None):
+def create_streaming_loader(dataset_name, split, tokenizer, config, batch_size, mode="pretrain", hf_token=None, start_step=0):
     raw_dataset = load_dataset(dataset_name, split=split, streaming=True,
                               trust_remote_code=True, token=hf_token)
-    stream_ds = StreamingDataset(raw_dataset, tokenizer, config.max_seq_len, mode=mode)
+    
+    # Calculate samples to skip: start_step * batch_size
+    skip_samples = start_step * batch_size
+    if skip_samples > 0:
+        print(f"  [Loader] Resuming: Fast-forwarding dataset by {skip_samples} samples...")
+        
+    stream_ds = StreamingDataset(raw_dataset, tokenizer, config.max_seq_len, mode=mode, skip_samples=skip_samples)
+    
+    # Increase num_workers for better utilization
     return DataLoader(stream_ds, batch_size=batch_size, pin_memory=True,
-                     num_workers=1, prefetch_factor=2)
+                     num_workers=4, prefetch_factor=4)

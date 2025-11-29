@@ -15,7 +15,48 @@ class Trainer:
         
         self.model.to(self.device)
 
-    def train_epoch(self, train_loader, total_steps, start_step=0, stage_name="Training"):
+    def validate(self, val_loader, global_step):
+        self.model.eval()
+        total_loss = 0
+        total_items = 0
+        num_batches = 100 # Validate on 100 batches to save time
+        
+        print(f"\n[Validation] Starting validation at step {global_step}...")
+        
+        with torch.no_grad():
+             for i, batch in enumerate(val_loader):
+                if i >= num_batches:
+                    break
+                    
+                input_ids, labels = batch
+                input_ids = input_ids.to(self.device, non_blocking=True)
+                labels = labels.to(self.device, non_blocking=True)
+                
+                # Auto-cast context
+                if self.device.type == 'cuda':
+                    autocast_dtype = torch.float16
+                else:
+                    autocast_dtype = torch.bfloat16
+                    
+                use_autocast = True if self.config.torch_dtype != torch.float32 else False
+                
+                if use_autocast:
+                    with torch.amp.autocast('cuda' if self.device.type == 'cuda' else 'cpu', dtype=autocast_dtype):
+                        output = self.model(input_ids, labels)
+                else:
+                    output = self.model(input_ids, labels)
+                
+                total_loss += output["loss"].item()
+                total_items += 1
+        
+        avg_loss = total_loss / total_items if total_items > 0 else 0
+        perplexity = torch.exp(torch.tensor(avg_loss)).item()
+        
+        print(f"[Validation] Step {global_step} | Loss: {avg_loss:.4f} | PPL: {perplexity:.4f}")
+        self.model.train()
+        return avg_loss
+
+    def train_epoch(self, train_loader, total_steps, start_step=0, stage_name="Training", val_loader=None, eval_every=500):
         print(f"\n{'='*70}\nStarting {stage_name}: Target Steps={total_steps}\n{'='*70}")
         self.model.train()
         global_step = start_step
@@ -29,9 +70,7 @@ class Trainer:
         while global_step < total_steps:
             step_start = time.time()
 
-            # Clear cache periodically
-            if global_step % 100 == 0:
-                torch.cuda.empty_cache()
+            # Removed periodic cache clearing for performance
 
             self.optimizer.zero_grad(set_to_none=True)
 
@@ -99,5 +138,8 @@ class Trainer:
 
             if global_step % 500 == 0:
                 save_checkpoint(self.model, self.optimizer, self.scaler, global_step, stage_name, self.checkpoint_dir)
+                
+            if val_loader is not None and global_step % eval_every == 0 and global_step > start_step:
+                self.validate(val_loader, global_step)
 
         return global_step
