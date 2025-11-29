@@ -43,7 +43,7 @@ class HybridMambaMoE(nn.Module):
         x = self.embedding(input_ids)
         total_aux_loss = torch.tensor(0.0, device=x.device, dtype=x.dtype)
 
-        for layer in self.layers:
+        for i, layer in enumerate(self.layers):
             if self.gradient_checkpointing and self.training:
                 # Checkpoint ALL layers for maximum memory savings
                 if isinstance(layer, SparseMoELayer):
@@ -66,7 +66,7 @@ class HybridMambaMoE(nn.Module):
 
             # Add gradient clipping per layer to catch issues early
             if self.training and torch.isnan(x).any():
-                print(f"WARNING: NaN detected in layer output!")
+                print(f"WARNING: NaN detected in layer {i} ({layer.__class__.__name__}) output!")
                 x = torch.nan_to_num(x, nan=0.0, posinf=1.0, neginf=-1.0)
 
         x = self.final_norm(x)

@@ -72,10 +72,11 @@ class Trainer:
             # Gradient clipping
             grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
 
-            if torch.isnan(grad_norm):
-                print(f"WARNING: NaN gradient at step {global_step}, skipping update")
+            if torch.isnan(grad_norm) or torch.isinf(grad_norm):
+                print(f"WARNING: NaN/Inf gradient at step {global_step}, skipping update")
+            else:
+                self.scaler.step(self.optimizer)
 
-            self.scaler.step(self.optimizer)
             self.scaler.update()
 
             global_step += 1

@@ -74,8 +74,8 @@ class SSMBlock(nn.Module):
         x_conv = x_conv[:, :, :-2].transpose(1, 2)
         x_conv = self.act(x_conv)
 
-        # Add small epsilon to prevent numerical issues
-        delta = F.softplus(self.delta_proj(x_conv)) + 1e-4
+        # Add small epsilon to prevent numerical issues and clamp max value
+        delta = torch.clamp(F.softplus(self.delta_proj(x_conv)), max=5.0) + 1e-4
         B_ssm = self.B_proj(x_conv)
         C_ssm = self.C_proj(x_conv)
 
