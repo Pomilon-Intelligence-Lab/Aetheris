@@ -2,6 +2,7 @@ import torch
 import time
 import os
 from aetheris.utils import save_checkpoint, load_latest_checkpoint, calculate_model_stats
+from aetheris.data import get_tokenizer
 
 class Trainer:
     def __init__(self, model, optimizer, scaler, config, device, checkpoint_dir, logger=None):
@@ -83,6 +84,32 @@ class Trainer:
                 batch = next(train_iter)
 
             input_ids, labels = batch
+            
+            # --- SANITY CHECK START ---
+            if global_step == start_step:
+                try:
+                    print("\n[SANITY CHECK] Verifying input data integrity...")
+                    debug_tokenizer = get_tokenizer()
+                    
+                    # Check 1: Print raw IDs
+                    sample_ids = input_ids[0]
+                    print(f"Raw Input IDs (first 20): {sample_ids[:20].tolist()}")
+                    
+                    # Check 2: Decode back to text
+                    decoded_text = debug_tokenizer.decode(sample_ids, skip_special_tokens=False)
+                    print(f"Decoded Text (first 200 chars):\n---\n{decoded_text[:200]}\n---")
+                    
+                    # Check 3: Verify range
+                    max_id = input_ids.max().item()
+                    print(f"Max Token ID in batch: {max_id} (Vocab Size: {debug_tokenizer.vocab_size})")
+                    if max_id >= debug_tokenizer.vocab_size:
+                        print(f"WARNING: Found token ID {max_id} >= vocab size {debug_tokenizer.vocab_size}!")
+                    
+                    print("[SANITY CHECK] Complete.\n")
+                except Exception as e:
+                    print(f"[SANITY CHECK] Failed: {e}")
+            # --- SANITY CHECK END ---
+
             input_ids = input_ids.to(self.device, non_blocking=True)
             labels = labels.to(self.device, non_blocking=True)
 
