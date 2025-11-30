@@ -107,6 +107,15 @@ def generate_command(args):
     repetition_penalty = args.repetition_penalty
 
     input_ids = tokenizer.encode(prompt, return_tensors='pt').to(device)
+    
+    # --- INFERENCE SANITY CHECK ---
+    print(f"\n[SANITY CHECK] Inference Tokenizer: {tokenizer.name_or_path}")
+    print(f"[SANITY CHECK] Vocab Size: {tokenizer.vocab_size}")
+    print(f"[SANITY CHECK] Input IDs: {input_ids.tolist()}")
+    decoded_prompt = tokenizer.decode(input_ids[0], skip_special_tokens=False)
+    print(f"[SANITY CHECK] Decoded Prompt: '{decoded_prompt}'\n")
+    # ------------------------------
+    
     generated_ids = input_ids.clone()
     history_ids = set(input_ids[0].tolist())
 
