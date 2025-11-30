@@ -23,6 +23,7 @@ def train_command(args):
     if device.type == 'cuda':
         torch.backends.cuda.matmul.allow_tf32 = True
         torch.backends.cudnn.allow_tf32 = True
+        torch.backends.cudnn.benchmark = True
         torch.cuda.empty_cache()
 
     config = AetherisConfig.from_yaml(args.config)
@@ -38,6 +39,10 @@ def train_command(args):
     print("Applying proper weight initialization...")
     model.apply(model._init_weights)
 
+    if args.compile:
+        print("Compiling model with torch.compile()...")
+        model = torch.compile(model)
+
     # Calculate model stats
     stats = calculate_model_stats(model)
     print(f"Total Parameters: {stats['total_params']:,}")
@@ -50,7 +55,7 @@ def train_command(args):
 
     start_step, current_stage = load_latest_checkpoint(model, optimizer, scaler, device, args.checkpoint_dir, args.checkpoint_name)
     
-    trainer = Trainer(model, optimizer, scaler, config, device, args.checkpoint_dir)
+    trainer = Trainer(model, optimizer, scaler, config, device, args.checkpoint_dir, grad_accum_steps=args.accumulate_grad_batches)
 
     # --- STAGE 1: PRE-TRAINING ---
     if current_stage == "Pre-Training" or start_step == 0:
@@ -107,15 +112,6 @@ def generate_command(args):
     repetition_penalty = args.repetition_penalty
 
     input_ids = tokenizer.encode(prompt, return_tensors='pt').to(device)
-    
-    # --- INFERENCE SANITY CHECK ---
-    print(f"\n[SANITY CHECK] Inference Tokenizer: {tokenizer.name_or_path}")
-    print(f"[SANITY CHECK] Vocab Size: {tokenizer.vocab_size}")
-    print(f"[SANITY CHECK] Input IDs: {input_ids.tolist()}")
-    decoded_prompt = tokenizer.decode(input_ids[0], skip_special_tokens=False)
-    print(f"[SANITY CHECK] Decoded Prompt: '{decoded_prompt}'\n")
-    # ------------------------------
-    
     generated_ids = input_ids.clone()
     history_ids = set(input_ids[0].tolist())
 
@@ -139,19 +135,6 @@ def generate_command(args):
             outputs = model(generated_ids)
             logits = outputs['logits']
             next_token_logits = logits[:, -1, :]
-
-        # --- DEBUG: Print Top Predictions for First Step ---
-        if step == 0:
-            probs = F.softmax(next_token_logits, dim=-1)
-            top_probs, top_indices = torch.topk(probs, 5)
-            print("\n[DEBUG] Step 0 Top-5 Predictions:")
-            for i in range(5):
-                token_idx = top_indices[0, i].item()
-                prob = top_probs[0, i].item()
-                token_str = tokenizer.decode([token_idx])
-                print(f"  {i+1}. '{token_str}' ({prob:.4f})")
-            print("-----------------------------------")
-        # ---------------------------------------------------
 
         # Repetition penalty
         for token_id in history_ids:
@@ -248,6 +231,8 @@ def main():
     train_parser.add_argument("--pretrain_steps", type=int, default=50000, help="Number of pretraining steps")
     train_parser.add_argument("--sft_steps", type=int, default=1000, help="Number of SFT steps")
     train_parser.add_argument("--checkpoint_name", type=str, default="checkpoint_current.pth", help="Checkpoint file name to load from")
+    train_parser.add_argument("--compile", action="store_true", help="Compile model with torch.compile for speed")
+    train_parser.add_argument("--accumulate_grad_batches", type=int, default=1, help="Gradient accumulation steps")
 
     # Generate Command
     gen_parser = subparsers.add_parser("generate", help="Generate text")

@@ -5,7 +5,7 @@ from aetheris.utils import save_checkpoint, load_latest_checkpoint, calculate_mo
 from aetheris.data import get_tokenizer
 
 class Trainer:
-    def __init__(self, model, optimizer, scaler, config, device, checkpoint_dir, logger=None):
+    def __init__(self, model, optimizer, scaler, config, device, checkpoint_dir, logger=None, grad_accum_steps=1):
         self.model = model
         self.optimizer = optimizer
         self.scaler = scaler
@@ -13,6 +13,7 @@ class Trainer:
         self.device = device
         self.checkpoint_dir = checkpoint_dir
         self.logger = logger
+        self.grad_accum_steps = grad_accum_steps
         
         self.model.to(self.device)
 
@@ -58,7 +59,7 @@ class Trainer:
         return avg_loss
 
     def train_epoch(self, train_loader, total_steps, start_step=0, stage_name="Training", val_loader=None, eval_every=500):
-        print(f"\n{'='*70}\nStarting {stage_name}: Target Steps={total_steps}\n{'='*70}")
+        print(f"\n{'='*70}\nStarting {stage_name}: Target Steps={total_steps} (Accum={self.grad_accum_steps})\n{'='*70}")
         self.model.train()
         global_step = start_step
         running_loss = 0
@@ -68,12 +69,13 @@ class Trainer:
 
         print("Fetching first batch...")
 
+        # Zero gradients initially
+        self.optimizer.zero_grad(set_to_none=True)
+
         while global_step < total_steps:
             step_start = time.time()
 
             # Removed periodic cache clearing for performance
-
-            self.optimizer.zero_grad(set_to_none=True)
 
             try:
                 batch = next(train_iter)
@@ -84,32 +86,6 @@ class Trainer:
                 batch = next(train_iter)
 
             input_ids, labels = batch
-            
-            # --- SANITY CHECK START ---
-            if global_step == start_step:
-                try:
-                    print("\n[SANITY CHECK] Verifying input data integrity...")
-                    debug_tokenizer = get_tokenizer()
-                    
-                    # Check 1: Print raw IDs
-                    sample_ids = input_ids[0]
-                    print(f"Raw Input IDs (first 20): {sample_ids[:20].tolist()}")
-                    
-                    # Check 2: Decode back to text
-                    decoded_text = debug_tokenizer.decode(sample_ids, skip_special_tokens=False)
-                    print(f"Decoded Text (first 200 chars):\n---\n{decoded_text[:200]}\n---")
-                    
-                    # Check 3: Verify range
-                    max_id = input_ids.max().item()
-                    print(f"Max Token ID in batch: {max_id} (Vocab Size: {debug_tokenizer.vocab_size})")
-                    if max_id >= debug_tokenizer.vocab_size:
-                        print(f"WARNING: Found token ID {max_id} >= vocab size {debug_tokenizer.vocab_size}!")
-                    
-                    print("[SANITY CHECK] Complete.\n")
-                except Exception as e:
-                    print(f"[SANITY CHECK] Failed: {e}")
-            # --- SANITY CHECK END ---
-
             input_ids = input_ids.to(self.device, non_blocking=True)
             labels = labels.to(self.device, non_blocking=True)
 
@@ -127,26 +103,31 @@ class Trainer:
             if use_autocast:
                 with torch.amp.autocast('cuda' if self.device.type == 'cuda' else 'cpu', dtype=autocast_dtype):
                     output = self.model(input_ids, labels)
-                    loss = output["loss"]
+                    # Scale loss for accumulation
+                    loss = output["loss"] / self.grad_accum_steps
             else:
                 output = self.model(input_ids, labels)
-                loss = output["loss"]
+                loss = output["loss"] / self.grad_accum_steps
 
             self.scaler.scale(loss).backward()
-            self.scaler.unscale_(self.optimizer)
+            
+            # Gradient Accumulation Step
+            if (global_step + 1) % self.grad_accum_steps == 0:
+                self.scaler.unscale_(self.optimizer)
 
-            # Gradient clipping
-            grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
+                # Gradient clipping
+                grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
 
-            if torch.isnan(grad_norm) or torch.isinf(grad_norm):
-                print(f"WARNING: NaN/Inf gradient at step {global_step}, skipping update")
-            else:
-                self.scaler.step(self.optimizer)
+                if torch.isnan(grad_norm) or torch.isinf(grad_norm):
+                    print(f"WARNING: NaN/Inf gradient at step {global_step}, skipping update")
+                else:
+                    self.scaler.step(self.optimizer)
 
-            self.scaler.update()
+                self.scaler.update()
+                self.optimizer.zero_grad(set_to_none=True)
 
             global_step += 1
-            running_loss += loss.item()
+            running_loss += (loss.item() * self.grad_accum_steps) # Un-scale for reporting
 
             if global_step % 10 == 0:
                 avg_loss = running_loss / 10
