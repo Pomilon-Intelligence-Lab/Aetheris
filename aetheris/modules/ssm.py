@@ -3,9 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from ..config import AetherisConfig
 
-from typing import List
-
-@torch.jit.script
+@torch.jit.ignore
 def selective_scan_native(u: torch.Tensor, delta: torch.Tensor, A: torch.Tensor,
                          B: torch.Tensor, C: torch.Tensor, D: torch.Tensor) -> torch.Tensor:
     """Memory-efficient scan with reduced intermediate tensors."""
@@ -18,7 +16,7 @@ def selective_scan_native(u: torch.Tensor, delta: torch.Tensor, A: torch.Tensor,
     # Use in-place operations where possible
     # FORCE FLOAT32 for state to prevent underflow/overflow in long sequences
     h = torch.zeros(B_size, D_inner, D_state, device=u.device, dtype=torch.float32)
-    ys: List[torch.Tensor] = []
+    ys = []
     
     # Cast inputs to float32 for the scan
     # Note: This increases memory usage slightly but is critical for stability
