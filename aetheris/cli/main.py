@@ -39,10 +39,6 @@ def train_command(args):
     print("Applying proper weight initialization...")
     model.apply(model._init_weights)
 
-    if args.compile:
-        print("Compiling model with torch.compile()...")
-        model = torch.compile(model)
-
     # Calculate model stats
     stats = calculate_model_stats(model)
     print(f"Total Parameters: {stats['total_params']:,}")
@@ -55,6 +51,10 @@ def train_command(args):
 
     start_step, current_stage = load_latest_checkpoint(model, optimizer, scaler, device, args.checkpoint_dir, args.checkpoint_name)
     
+    if args.compile:
+        print("Compiling model with torch.compile()...")
+        model = torch.compile(model)
+
     trainer = Trainer(model, optimizer, scaler, config, device, args.checkpoint_dir, grad_accum_steps=args.accumulate_grad_batches)
 
     # --- STAGE 1: PRE-TRAINING ---
