@@ -4,3 +4,9 @@ datasets
 huggingface_hub
 pyyaml
 zstandard
+fastapi
+uvicorn
+pydantic
+sse-starlette
+pytest
+httpx

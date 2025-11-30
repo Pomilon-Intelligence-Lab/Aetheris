@@ -238,6 +238,15 @@ def main():
     gen_parser.add_argument("--top_p", type=float, default=0.9, help="Top-p sampling")
     gen_parser.add_argument("--repetition_penalty", type=float, default=3.0, help="Repetition penalty")
 
+    # Serve Command
+    serve_parser = subparsers.add_parser("serve", help="Start the API server")
+    serve_parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind")
+    serve_parser.add_argument("--port", type=int, default=8000, help="Port to bind")
+    serve_parser.add_argument("--config", type=str, default="configs/default.yaml", help="Path to config file")
+    serve_parser.add_argument("--checkpoint_dir", type=str, default="checkpoints", help="Directory with checkpoints")
+    serve_parser.add_argument("--checkpoint_name", type=str, default="checkpoint_current.pth", help="Checkpoint file name")
+
+
     # Info Command
     info_parser = subparsers.add_parser("info", help="Show model info")
     info_parser.add_argument("--config", type=str, default="configs/default.yaml", help="Path to config file")
@@ -248,6 +257,27 @@ def main():
         train_command(args)
     elif args.command == "generate":
         generate_command(args)
+    elif args.command == "serve":
+        import uvicorn
+        from aetheris.api.server import app, get_engine
+        
+        # Initialize engine before starting server
+        engine = get_engine()
+        # You might want to pass config/checkpoint paths to get_engine here if it supported arguments
+        # For now, it defaults or we need to modify get_engine or InferenceEngine to take args.
+        # But `get_engine` is a simple global accessor. 
+        # Better: Initialize a global engine with args here.
+        from aetheris.inference import InferenceEngine
+        import aetheris.api.server
+        
+        aetheris.api.server.engine = InferenceEngine(
+            config_path=args.config,
+            checkpoint_dir=args.checkpoint_dir,
+            checkpoint_name=args.checkpoint_name
+        )
+        
+        uvicorn.run(app, host=args.host, port=args.port)
+
     elif args.command == "info":
         info_command(args)
     else:

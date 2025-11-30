@@ -3,10 +3,10 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Experimental-yellow.svg" alt="Status">
   <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
-  <img src="https://img.shields.io/badge/Python-3.8+-blue.svg" alt="Python">
+  <img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python">
   <img src="https://img.shields.io/badge/PyTorch-2.0+-orange.svg" alt="PyTorch">
+  <img src="https://img.shields.io/badge/API-FastAPI-009688.svg" alt="FastAPI">
 </p>
-
 
 
 **Aetheris** is a hobbyist research project and experimental implementation exploring the intersection of **State Space Models (Mamba)** and **Mixture of Experts (MoE)**.
@@ -36,15 +36,31 @@ This code is provided for educational purposes and for others who want to experi
 
 ### Installation
 
+**Option 1: Local Python Environment**
+
 ```bash
 git clone https://github.com/Pomilon/Aetheris.git
 cd Aetheris
 pip install -r requirements.txt
-````
+```
+
+**Option 2: Docker**
+
+We provide Dockerfiles for both CPU (slim) and GPU (NVIDIA) environments.
+
+```bash
+# CPU Version
+docker build -t aetheris-cpu -f Dockerfile .
+docker run -p 7860:7860 aetheris-cpu
+
+# GPU Version (Requires NVIDIA Container Toolkit)
+docker build -t aetheris-gpu -f Dockerfile-nvidia .
+docker run --gpus all -p 7860:7860 aetheris-gpu
+```
 
 ### Usage (CLI)
 
-Aetheris includes a CLI to train or inference the model.
+Aetheris includes a CLI to train, inference, or serve the model.
 
 **1. Training (From Scratch)**
 
@@ -53,10 +69,38 @@ Aetheris includes a CLI to train or inference the model.
 python -m aetheris.cli.main train --config configs/default.yaml
 ```
 
-**2. Generation**
+**2. Generation (CLI)**
 
 ```bash
 python -m aetheris.cli.main generate --prompt "The quick brown fox" --checkpoint_dir checkpoints
+```
+
+**3. API Server (OpenAI-Compatible)**
+
+Start a local API server that simulates OpenAI's chat completions endpoint.
+
+```bash
+python -m aetheris.cli.main serve --host 0.0.0.0 --port 8000
+```
+
+You can then interact with it using standard tools:
+
+```bash
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d 	{
+    "model": "aetheris-hybrid",
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "stream": true
+  }
+```
+
+### Development & Testing
+
+To run the test suite:
+
+```bash
+pytest tests/
 ```
 
 ## ⚙️ Configuration
