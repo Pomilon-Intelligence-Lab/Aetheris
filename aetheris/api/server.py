@@ -38,6 +38,10 @@ def get_engine():
 async def startup_event():
     get_engine()
 
+@app.get("/")
+async def root():
+    return {"status": "running", "message": "Aetheris API is active. Use /v1/chat/completions for inference."}
+
 @app.get("/v1/models", response_model=ModelList)
 async def list_models():
     return ModelList(data=[ModelCard(id="aetheris-hybrid-mamba-moe")])
@@ -68,37 +72,67 @@ async def chat_completions(request: ChatCompletionRequest):
                 )]
             ).model_dump())
 
-            for token in engine.generate(
-                prompt=prompt,
-                max_new_tokens=request.max_tokens or 100,
-                temperature=request.temperature,
-                top_p=request.top_p,
-                repetition_penalty=1.0 + request.frequency_penalty, # Approximating
-                stream=True
-            ):
+            # Offload synchronous generation to a thread to avoid blocking the event loop
+            queue = asyncio.Queue()
+            loop = asyncio.get_running_loop()
+            import threading
+            stop_event = threading.Event()
+
+            def producer():
+                try:
+                    # Run the synchronous generator
+                    for token in engine.generate(
+                        prompt=prompt,
+                        max_new_tokens=request.max_tokens or 100,
+                        temperature=request.temperature,
+                        top_p=request.top_p,
+                        repetition_penalty=1.0 + request.frequency_penalty,
+                        stream=True
+                    ):
+                        if stop_event.is_set():
+                            break
+                        # Schedule the put() coroutine on the main loop
+                        asyncio.run_coroutine_threadsafe(queue.put(token), loop)
+                except Exception as e:
+                    print(f"Generation error: {e}")
+                finally:
+                    # Signal done
+                    asyncio.run_coroutine_threadsafe(queue.put(None), loop)
+
+            thread = threading.Thread(target=producer, daemon=True)
+            thread.start()
+
+            try:
+                while True:
+                    token = await queue.get()
+                    if token is None:
+                        break
+                    
+                    yield json.dumps(ChatCompletionChunk(
+                        id=request_id,
+                        created=created_time,
+                        model=request.model,
+                        choices=[ChatCompletionChunkChoice(
+                            index=0,
+                            delta=ChatCompletionChunkDelta(content=token),
+                            finish_reason=None
+                        )]
+                    ).model_dump())
+                
                 yield json.dumps(ChatCompletionChunk(
                     id=request_id,
                     created=created_time,
                     model=request.model,
                     choices=[ChatCompletionChunkChoice(
                         index=0,
-                        delta=ChatCompletionChunkDelta(content=token),
-                        finish_reason=None
+                        delta=ChatCompletionChunkDelta(),
+                        finish_reason="stop"
                     )]
                 ).model_dump())
-            
-            yield json.dumps(ChatCompletionChunk(
-                id=request_id,
-                created=created_time,
-                model=request.model,
-                choices=[ChatCompletionChunkChoice(
-                    index=0,
-                    delta=ChatCompletionChunkDelta(),
-                    finish_reason="stop"
-                )]
-            ).model_dump())
-            
-            yield "[DONE]"
+                
+                yield "[DONE]"
+            finally:
+                stop_event.set()
 
         return EventSourceResponse(event_generator())
 
