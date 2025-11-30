@@ -64,11 +64,6 @@ class HybridMambaMoE(nn.Module):
                 else:
                     x = layer(x)
 
-            # Add gradient clipping per layer to catch issues early
-            if self.training and torch.isnan(x).any():
-                print(f"WARNING: NaN detected in layer {i} ({layer.__class__.__name__}) output!")
-                x = torch.nan_to_num(x, nan=0.0, posinf=1.0, neginf=-1.0)
-
         x = self.final_norm(x)
         logits = self.lm_head(x)
 

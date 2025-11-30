@@ -53,7 +53,8 @@ class SparseMoELayer(nn.Module):
         total_aux_loss = aux_loss + z_loss
 
         # Efficient dispatch with in-place operations
-        final_output = torch.zeros_like(flat_x)
+        # Accumulate in float32 to prevent overflow during aggregation
+        final_output = torch.zeros_like(flat_x, dtype=torch.float32)
 
         # Iterate over all k selected experts
         for k_idx in range(self.top_k):
@@ -69,13 +70,14 @@ class SparseMoELayer(nn.Module):
                 # Apply weights
                 weights = gate_weights[mask, k_idx].unsqueeze(1)
                 
-                # Ensure dtypes match before assignment
-                if expert_out.dtype != final_output.dtype:
-                    expert_out = expert_out.to(final_output.dtype)
-                if weights.dtype != final_output.dtype:
-                    weights = weights.to(final_output.dtype)
+                # Cast to float32 for accumulation
+                expert_out = expert_out.to(torch.float32)
+                weights = weights.to(torch.float32)
 
                 # Accumulate output (add to existing results from other experts)
                 final_output[mask] += expert_out * weights
+        
+        # Cast back to original dtype
+        final_output = final_output.to(flat_x.dtype)
 
         return x + final_output.view(B, L, D), total_aux_loss
