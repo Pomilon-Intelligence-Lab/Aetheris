@@ -8,10 +8,23 @@ def selective_scan_native(u: torch.Tensor, delta: torch.Tensor, A: torch.Tensor,
     """Memory-efficient scan with reduced intermediate tensors."""
     B_size, L, D_inner = u.shape
     D_state = A.shape[-1]
+    
+    # Save original dtype
+    original_dtype = u.dtype
 
     # Use in-place operations where possible
-    h = torch.zeros(B_size, D_inner, D_state, device=u.device, dtype=u.dtype)
+    # FORCE FLOAT32 for state to prevent underflow/overflow in long sequences
+    h = torch.zeros(B_size, D_inner, D_state, device=u.device, dtype=torch.float32)
     ys = []
+    
+    # Cast inputs to float32 for the scan
+    # Note: This increases memory usage slightly but is critical for stability
+    u = u.float()
+    delta = delta.float()
+    A = A.float()
+    B = B.float()
+    C = C.float()
+    D = D.float()
 
     for l in range(L):
         dt = delta[:, l, :].unsqueeze(-1)
@@ -28,7 +41,10 @@ def selective_scan_native(u: torch.Tensor, delta: torch.Tensor, A: torch.Tensor,
         ys.append(y_t)
 
     y = torch.stack(ys, dim=1)
-    return y + u * D
+    y = y + u * D
+    
+    # Cast back to original dtype
+    return y.to(dtype=original_dtype)
 
 class SSMBlock(nn.Module):
     """Memory-optimized State Space Model with stability improvements."""
