@@ -111,39 +111,41 @@ def generate_command(args):
     history_ids = set(input_ids[0].tolist())
 
     print("-" * 50)
-            print(f"Prompt: {prompt}")
-        print("Generated Continuation:")
-    
-        for step in range(max_new_tokens):
-            # Check if we should use autocast (skip if model uses float32)
-            use_autocast = True
-            if config.torch_dtype == torch.float32:
-                use_autocast = False
-            
-            if use_autocast:
-                with torch.amp.autocast('cuda' if device.type == 'cuda' else 'cpu', dtype=model.config.torch_dtype):
-                    outputs = model(generated_ids)
-                    logits = outputs['logits']
-                    next_token_logits = logits[:, -1, :]
-            else:
+    print(f"Prompt: {prompt}")
+    print("Generated Continuation:")
+
+    # Start generation loop
+    for step in range(max_new_tokens):
+        # Check if we should use autocast (skip if model uses float32)
+        use_autocast = True
+        if config.torch_dtype == torch.float32:
+            use_autocast = False
+        
+        if use_autocast:
+            with torch.amp.autocast('cuda' if device.type == 'cuda' else 'cpu', dtype=model.config.torch_dtype):
                 outputs = model(generated_ids)
                 logits = outputs['logits']
                 next_token_logits = logits[:, -1, :]
-    
-            # --- DEBUG: Print Top Predictions for First Step ---
-            if step == 0:
-                probs = F.softmax(next_token_logits, dim=-1)
-                top_probs, top_indices = torch.topk(probs, 5)
-                print("\n[DEBUG] Step 0 Top-5 Predictions:")
-                for i in range(5):
-                    token_idx = top_indices[0, i].item()
-                    prob = top_probs[0, i].item()
-                    token_str = tokenizer.decode([token_idx])
-                    print(f"  {i+1}. '{token_str}' ({prob:.4f})")
-                print("-----------------------------------")
-            # ---------------------------------------------------
-    
-            # Repetition penalty        for token_id in history_ids:
+        else:
+            outputs = model(generated_ids)
+            logits = outputs['logits']
+            next_token_logits = logits[:, -1, :]
+
+        # --- DEBUG: Print Top Predictions for First Step ---
+        if step == 0:
+            probs = F.softmax(next_token_logits, dim=-1)
+            top_probs, top_indices = torch.topk(probs, 5)
+            print("\n[DEBUG] Step 0 Top-5 Predictions:")
+            for i in range(5):
+                token_idx = top_indices[0, i].item()
+                prob = top_probs[0, i].item()
+                token_str = tokenizer.decode([token_idx])
+                print(f"  {i+1}. '{token_str}' ({prob:.4f})")
+            print("-----------------------------------")
+        # ---------------------------------------------------
+
+        # Repetition penalty
+        for token_id in history_ids:
             if token_id < next_token_logits.size(-1):
                 logit = next_token_logits[0, token_id].item()
                 if logit > 0:
