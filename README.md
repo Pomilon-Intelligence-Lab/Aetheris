@@ -39,7 +39,7 @@ This code is provided for educational purposes and for others who want to experi
 **Option 1: Local Python Environment**
 
 ```bash
-git clone https://github.com/Pomilon/Aetheris.git
+git clone https://github.com/Pomilon-Intelligence-Lab/Aetheris.git
 cd Aetheris
 pip install -r requirements.txt
 ```
@@ -122,11 +122,11 @@ This project is an implementation study and relies heavily on the brilliant theo
 
 ## 🧠 Model Weights & Checkpoints
 
-All pre-trained checkpoints are hosted on the [Hugging Face Hub](https://huggingface.co/Pomilon).
+All pre-trained checkpoints are hosted on the [Hugging Face Hub](https://huggingface.co/Pomilon-Intelligence-Lab).
 
 | Model Artifact | Step | Description | Download |
 | :--- | :--- | :--- | :--- |
-| **Aetheris-Base** | 10k | Early convergence checkpoint (Loss ~3.66). Good for analyzing router behavior. | [🤗 Hugging Face](https://huggingface.co/pomilon-lab/Aetheris-MoE-300M-A125M-base) |
+| **Aetheris-Base** | 10k | Early convergence checkpoint (Loss ~3.66). Good for analyzing router behavior. | [🤗 Hugging Face](https://huggingface.co/Pomilon-Intelligence-Lab-lab/Aetheris-MoE-300M-A125M-base) |
 | **Aetheris-Chat** | -- | *Coming Soon (Post-SFT)* | -- |
 
 > **⚠️ Important:** Aetheris uses a custom Hybrid Mamba-MoE architecture. You **cannot** load it directly with `transformers.AutoModel`. You must use the interface provided in this repository.
