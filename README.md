@@ -136,7 +136,7 @@ All pre-trained checkpoints are hosted on the [Hugging Face Hub](https://hugging
 ```python
 python -m aetheris.cli.main generate --prompt "The quick brown fox" --checkpoint_dir path/to/checkpoints_folder # rename the checkpoint inside to checkpoint_current.pth
 ```
-> **Note:** will add better inference later down the line, for now used this scuffed version. :D
+> **Note:** will add better inference later down the line, for now use this scuffed version. :D
 
 > **Note:** These weights are from an experimental run. While they demonstrate the architectural capabilities, do not expect GPT-5 or even google bard level coherence. :D
 > this project was made for learning and fun!
