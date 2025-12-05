@@ -126,7 +126,7 @@ All pre-trained checkpoints are hosted on the [Hugging Face Hub](https://hugging
 
 | Model Artifact | Step | Description | Download |
 | :--- | :--- | :--- | :--- |
-| **Aetheris-Base** | 10k | Early convergence checkpoint (Loss ~3.66). Good for analyzing router behavior. | [🤗 Hugging Face](https://huggingface.co/pomilon-lab/Aetheris-MoE-300M-A125M-base) |
+| **Aetheris-Base** | 17k | Early convergence checkpoint (Loss ~1.81). Good for analyzing router behavior. | [🤗 Hugging Face](https://huggingface.co/pomilon-lab/Aetheris-MoE-300M-A125M-base) |
 | **Aetheris-Chat** | -- | *Coming Soon (Post-SFT)* | -- |
 
 > **⚠️ Important:** Aetheris uses a custom Hybrid Mamba-MoE architecture. You **cannot** load it directly with `transformers.AutoModel`. You must use the interface provided in this repository.
