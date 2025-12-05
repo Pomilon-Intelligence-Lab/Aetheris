@@ -122,7 +122,7 @@ This project is an implementation study and relies heavily on the brilliant theo
 
 ## 🧠 Model Weights & Checkpoints
 
-All pre-trained checkpoints are hosted on the [Hugging Face Hub](https://huggingface.co/Pomilon-Intelligence-Lab).
+All pre-trained checkpoints are hosted on the [Hugging Face Hub](https://huggingface.co/pomilon-lab).
 
 | Model Artifact | Step | Description | Download |
 | :--- | :--- | :--- | :--- |
